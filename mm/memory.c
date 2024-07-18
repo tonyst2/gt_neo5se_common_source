@@ -6007,6 +6007,12 @@ static vm_fault_t do_read_fault(struct vm_fault *vmf)
 			if (ret)
 				return ret;
 		}
+	if (should_fault_around(vmf)) {
+		ret = do_fault_around(vmf);
+		if (ret)
+			return ret;
+	} else {
+		trace_android_vh_do_read_fault(vmf, fault_around_bytes);
 	}
 	trace_android_vh_do_read_fault(vmf, fault_around_bytes);
 

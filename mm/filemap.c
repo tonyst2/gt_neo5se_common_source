@@ -2320,6 +2320,8 @@ ssize_t generic_file_buffered_read(struct kiocb *iocb,
 		pgoff_t end_index;
 		loff_t isize;
 		unsigned long nr, ret;
+	folio_batch_init(&fbatch);
+	trace_android_vh_filemap_read(filp, iocb->ki_pos, iov_iter_count(iter));
 
 		cond_resched();
 find_page:
@@ -3245,6 +3247,7 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
         if (trace_filemap_map_pages_enabled())
                 pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
 #endif
+	vm_fault_t ret = 0;
 	pgoff_t first_pgoff = 0;
 
 	rcu_read_lock();
@@ -3320,7 +3323,8 @@ out:
 #endif
 	WRITE_ONCE(file->f_ra.mmap_miss, mmap_miss);
 	trace_android_vh_filemap_map_pages(file, first_pgoff, last_pgoff, ret);
-	return ret;
+
+	return ret
 }
 EXPORT_SYMBOL(filemap_map_pages);
 
