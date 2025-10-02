@@ -1134,17 +1134,14 @@ static struct attribute *f2fs_feat_attrs[] = {
 	ATTR_LIST(compression),
 #endif
 	ATTR_LIST(pin_file),
-<<<<<<< HEAD
 #ifdef CONFIG_F2FS_FS_DEDUP
 	ATTR_LIST(dedup),
 #endif
 	ATTR_LIST(may_compress),
 	ATTR_LIST(may_set_compr_fl),
-=======
 #ifdef CONFIG_UNICODE
 	ATTR_LIST(linear_lookup),
 #endif
->>>>>>> google/android12-5.10-lts
 	NULL,
 };
 ATTRIBUTE_GROUPS(f2fs_feat);
