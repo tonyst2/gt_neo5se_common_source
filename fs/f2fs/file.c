@@ -2694,7 +2694,7 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
      */
     if (attr->ia_size <= old_size && f2fs_is_outer_inode(inode)) {
       mark_file_modified(inode);
-      err = f2fs_revoke_deduped_inode(inode, func);
+      err = f2fs_revoke_deduped_inode(inode, __func__);
       if (err)
         return err;
     }
@@ -3539,7 +3539,7 @@ static long f2fs_fallocate(struct file *file, int mode,
 #ifdef CONFIG_F2FS_FS_DEDUP
   mark_file_modified(inode);
   if (f2fs_is_outer_inode(inode) &&
-      f2fs_revoke_deduped_inode(inode, func)) {
+      f2fs_revoke_deduped_inode(inode, __func__)) {
     ret = -EIO;
     goto out;
   }
@@ -5693,12 +5693,20 @@ static int reserve_compress_blocks(struct dnode_of_data *dn, pgoff_t count)
     }
 
     reserved = cluster_size - compr_blocks;
+    to_reserved = cluster_size - compr_blocks - reserved;
+ 
+ 		/* for the case all blocks in cluster were reserved */
+		if (reserved == 1)
+		if (to_reserved == 1) {
+			dn->ofs_in_node += cluster_size;
+ 			goto next;
+		}
     if (time_to_inject(sbi, FAULT_COMPRESS_RESERVE_NOSPC)) {
       f2fs_show_injection_info(sbi, FAULT_COMPRESS_RESERVE_NOSPC);
       return -ENOSPC;
     }
-    ret = inc_valid_block_count(sbi, dn->inode, &reserved);
-    if (ret)
+    ret = inc_valid_block_count(sbi, dn->inode, &reserved, false);
+    if (unlikely(ret))
       return ret;
 
 		for (i = 0; i < cluster_size; i++, dn->ofs_in_node++) {
