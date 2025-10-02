@@ -5621,7 +5621,7 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
 	memcg->deferred_split_queue.split_queue_len = 0;
 #endif
 #endif
-	spin_lock(&memcg_idr_lock);s
+	spin_lock(&memcg_idr_lock);
 	idr_replace(&mem_cgroup_idr, memcg, memcg->id.id);
 	spin_unlock(&memcg_idr_lock);
 	trace_android_vh_mem_cgroup_alloc(memcg);
