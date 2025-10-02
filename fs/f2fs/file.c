@@ -5686,16 +5686,13 @@ static int reserve_compress_blocks(struct dnode_of_data *dn, pgoff_t count)
 			}
 		}
 
-/* preserve vendor patch: recompute reserved */
-    reserved = cluster_size - compr_blocks;
-
-    /* for the case all blocks in cluster were reserved (google patch) */
-    to_reserved = cluster_size - compr_blocks - prev_reserved;
-    if (prev_reserved && to_reserved == 1) {
+/* for the case all blocks in cluster were reserved */
+    if (reserved && (cluster_size - compr_blocks - reserved) == 1) {
       dn->ofs_in_node += cluster_size;
       goto next;
     }
 
+    reserved = cluster_size - compr_blocks;
     if (time_to_inject(sbi, FAULT_COMPRESS_RESERVE_NOSPC)) {
       f2fs_show_injection_info(sbi, FAULT_COMPRESS_RESERVE_NOSPC);
       return -ENOSPC;
