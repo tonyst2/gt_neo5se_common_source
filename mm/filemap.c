@@ -2299,6 +2299,7 @@ ssize_t generic_file_buffered_read(struct kiocb *iocb,
 		return 0;
 
 	iov_iter_truncate(iter, inode->i_sb->s_maxbytes);
+	trace_android_vh_filemap_read(filp, iocb->ki_pos, iov_iter_count(iter));
 
 	index = *ppos >> PAGE_SHIFT;
 	prev_index = ra->prev_pos >> PAGE_SHIFT;
@@ -3240,14 +3241,18 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 #endif
 	vm_fault_t ret = (vmf->flags & FAULT_FLAG_SPECULATIVE) ?
 		VM_FAULT_RETRY : 0;
+vm_fault_t ret = (vmf->flags & FAULT_FLAG_SPECULATIVE) ?
+    VM_FAULT_RETRY : 0;
+pgoff_t first_pgoff = 0;
 #ifdef CONFIG_F2FS_APPBOOST
-        if (trace_filemap_map_pages_enabled())
-                pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
+    if (trace_filemap_map_pages_enabled())
+        pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
 #endif
-	rcu_read_lock();
-	head = first_map_page(mapping, &xas, end_pgoff);
-	if (!head)
-		goto out;
+rcu_read_lock();
+head = first_map_page(mapping, &xas, end_pgoff);
+if (!head)
+    goto out;
+first_pgoff = xas.xa_index;
 
 #ifdef CONFIG_CONT_PTE_HUGEPAGE
 	CHP_BUG_ON(!ContPteHugePage(head) && PageCont(head));
@@ -3315,6 +3320,7 @@ out:
                 kfree(pathbuf);
 #endif
 	WRITE_ONCE(file->f_ra.mmap_miss, mmap_miss);
+	trace_android_vh_filemap_map_pages(file, first_pgoff, last_pgoff, ret);
 	return ret;
 }
 EXPORT_SYMBOL(filemap_map_pages);
@@ -3372,7 +3378,7 @@ int generic_file_mmap(struct file * file, struct vm_area_struct * vma)
  */
 int generic_file_readonly_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	if ((vma->vm_flags & VM_SHARED) && (vma->vm_flags & VM_MAYWRITE))
+	if (vma_is_shared_maywrite(vma))
 		return -EINVAL;
 	return generic_file_mmap(file, vma);
 }
@@ -3763,6 +3769,7 @@ again:
 			break;
 		copied = status;
 
+		trace_android_vh_io_statistics(mapping, page->index, 1, false, false);
 		cond_resched();
 
 		iov_iter_advance(i, copied);
