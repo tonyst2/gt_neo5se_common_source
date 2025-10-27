@@ -5678,6 +5678,7 @@ static int reserve_compress_blocks(struct dnode_of_data *dn, pgoff_t count)
 				reserved++;
 				continue;
 			}
+			
 			if (__is_valid_data_blkaddr(blkaddr)) {
 				compr_blocks++;
 				continue;
@@ -5689,6 +5690,7 @@ static int reserve_compress_blocks(struct dnode_of_data *dn, pgoff_t count)
 			f2fs_show_injection_info(sbi, FAULT_COMPRESS_RESERVE_NOSPC);
 			return -ENOSPC;
 		}
+
 		ret = inc_valid_block_count(sbi, dn->inode, &reserved, false);
 		if (ret)
 		to_reserved = cluster_size - compr_blocks - reserved;

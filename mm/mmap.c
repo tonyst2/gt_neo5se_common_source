@@ -886,6 +886,7 @@ again:
 #else
 	vma_adjust_trans_huge(orig_vma, start, end, adjust_next);
 #endif
+
 	/*
 	 * Get rid of huge pages and shared page tables straddling the split
 	 * boundary.

@@ -1139,9 +1139,12 @@ static struct attribute *f2fs_feat_attrs[] = {
 #endif
 	ATTR_LIST(may_compress),
 	ATTR_LIST(may_set_compr_fl),
+<<<<<<< HEAD
 #ifdef CONFIG_UNICODE
 	ATTR_LIST(linear_lookup),
 #endif
+=======
+>>>>>>> 06a25a302ec2 (Synchronize code for realme RMX3709_15.0.0.600(EX01))
 	NULL,
 };
 ATTRIBUTE_GROUPS(f2fs_feat);

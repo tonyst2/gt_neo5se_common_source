@@ -3116,6 +3116,14 @@ static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 	update_load_set(&se->load, weight);
 
 	trace_android_vh_reweight_entity(se);
+	
+	if (!entity_is_task(se) && (stop_fair_group & (0x1)) == 1) {
+		unsigned long group_weight = clamp(group_cfs_rq(se)->load.weight,
+			scale_load(MIN_SHARES), scale_load(MAX_SHARES));
+
+		update_load_set(&se->load, group_weight);
+	}
+
 #ifdef CONFIG_SMP
 	do {
 		u32 divider = get_pelt_divider(&se->avg);
@@ -11534,7 +11542,10 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 	 * We can't change the weight of the root cgroup.
 	 */
 	if (!tg->se[0])
-		return -EINVAL;
+	{
+		stop_fair_group = scale_load_down(shares);
+		return 0;
+	}
 
 	shares = clamp(shares, scale_load(MIN_SHARES), scale_load(MAX_SHARES));
 

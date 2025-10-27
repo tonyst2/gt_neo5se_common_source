@@ -244,6 +244,6 @@ config BLK_PM
 
 config BLOCKIO_UX_OPT
 	bool
-	default n
+	default y
 
 source "block/Kconfig.iosched"
