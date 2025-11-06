@@ -1262,7 +1262,9 @@ static bool access_clidr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	if (p->is_write)
 		return write_to_read_only(vcpu, p, r);
 
-	p->regval = read_sysreg(clidr_el1);
+	u64 clidr = 0;                     /* <---- добавить инициализацию */
+	get_clidr_el1(NULL, &clidr);
+	p->regval = clidr;
 	return true;
 }
 
