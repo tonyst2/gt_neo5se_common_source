@@ -3241,13 +3241,11 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 #endif
 	vm_fault_t ret = (vmf->flags & FAULT_FLAG_SPECULATIVE) ?
 		VM_FAULT_RETRY : 0;
+	pgoff_t first_pgoff = 0;
 #ifdef CONFIG_F2FS_APPBOOST
         if (trace_filemap_map_pages_enabled())
                 pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
 #endif
-	pgoff_t first_pgoff;
-	first_pgoff = 0;
-	
 	rcu_read_lock();
 	head = first_map_page(mapping, &xas, end_pgoff);
 	if (!head)
