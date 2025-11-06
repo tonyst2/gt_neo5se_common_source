@@ -3245,7 +3245,8 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
         if (trace_filemap_map_pages_enabled())
                 pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
 #endif
-	pgoff_t first_pgoff = 0;
+	pgoff_t first_pgoff;
+	first_pgoff = 0;
 	
 	rcu_read_lock();
 	head = first_map_page(mapping, &xas, end_pgoff);
