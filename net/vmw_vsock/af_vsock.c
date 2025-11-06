@@ -436,6 +436,23 @@ int vsock_assign_transport(struct vsock_sock *vsk, struct vsock_sock *psk)
 	unsigned int remote_cid = vsk->remote_addr.svm_cid;
 	int ret;
 
+<<<<<<< HEAD
+=======
+	/* If the packet is coming with the source and destination CIDs higher
+	 * than VMADDR_CID_HOST, then a vsock channel where all the packets are
+	 * forwarded to the host should be established. Then the host will
+	 * need to forward the packets to the guest.
+	 *
+	 * The flag is set on the (listen) receive path (psk is not NULL). On
+	 * the connect path the flag can be set by the user space application.
+	 */
+	if (psk && vsk->local_addr.svm_cid > VMADDR_CID_HOST &&
+	    vsk->remote_addr.svm_cid > VMADDR_CID_HOST)
+		vsk->remote_addr.svm_flags |= VMADDR_FLAG_TO_HOST;
+
+	remote_flags = vsk->remote_addr.svm_flags;
+
+>>>>>>> parent of 687aa0c5581b (vsock: Fix transport_* TOCTOU)
 	switch (sk->sk_type) {
 	case SOCK_DGRAM:
 		new_transport = transport_dgram;
@@ -450,6 +467,7 @@ int vsock_assign_transport(struct vsock_sock *vsk, struct vsock_sock *psk)
 		break;
 	default:
 		return -ESOCKTNOSUPPORT;
+<<<<<<< HEAD
 	}
 
 	if (vsk->transport && vsk->transport == new_transport) {
@@ -457,6 +475,13 @@ int vsock_assign_transport(struct vsock_sock *vsk, struct vsock_sock *psk)
 		goto err;
 	}
 
+=======
+	}
+
+	if (vsk->transport) {
+		if (vsk->transport == new_transport)
+			return 0;
+>>>>>>> parent of 687aa0c5581b (vsock: Fix transport_* TOCTOU)
 
 	/* We increase the module refcnt to prevent the transport unloading
 	 * while there are open sockets assigned to it.
@@ -497,6 +522,17 @@ int vsock_assign_transport(struct vsock_sock *vsk, struct vsock_sock *psk)
 	 */
 	if (!new_transport || !try_module_get(new_transport->module))
 		return -ENODEV;
+<<<<<<< HEAD
+=======
+
+	if (sk->sk_type == SOCK_SEQPACKET) {
+		if (!new_transport->seqpacket_allow ||
+		    !new_transport->seqpacket_allow(remote_cid)) {
+			module_put(new_transport->module);
+			return -ESOCKTNOSUPPORT;
+		}
+	}
+>>>>>>> parent of 687aa0c5581b (vsock: Fix transport_* TOCTOU)
 
 	ret = new_transport->init(vsk, psk);
 	if (ret) {
