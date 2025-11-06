@@ -436,20 +436,6 @@ int vsock_assign_transport(struct vsock_sock *vsk, struct vsock_sock *psk)
 	unsigned int remote_cid = vsk->remote_addr.svm_cid;
 	int ret;
 
-	/* If the packet is coming with the source and destination CIDs higher
-	 * than VMADDR_CID_HOST, then a vsock channel where all the packets are
-	 * forwarded to the host should be established. Then the host will
-	 * need to forward the packets to the guest.
-	 *
-	 * The flag is set on the (listen) receive path (psk is not NULL). On
-	 * the connect path the flag can be set by the user space application.
-	 */
-	if (psk && vsk->local_addr.svm_cid > VMADDR_CID_HOST &&
-	    vsk->remote_addr.svm_cid > VMADDR_CID_HOST)
-		vsk->remote_addr.svm_flags |= VMADDR_FLAG_TO_HOST;
-
-	remote_flags = vsk->remote_addr.svm_flags;
-
 	switch (sk->sk_type) {
 	case SOCK_DGRAM:
 		new_transport = transport_dgram;
@@ -470,21 +456,6 @@ int vsock_assign_transport(struct vsock_sock *vsk, struct vsock_sock *psk)
 		if (vsk->transport == new_transport)
 			return 0;
 
-	/* We increase the module refcnt to prevent the transport unloading
-	 * while there are open sockets assigned to it.
-	 */
-	if (!new_transport || !try_module_get(new_transport->module)) {
-		ret = -ENODEV;
-		goto err;
-	}
-
-	/* It's safe to release the mutex after a successful try_module_get().
-	 * Whichever transport `new_transport` points at, it won't go away until
-	 * the last module_put() below or in vsock_deassign_transport().
-	 */
-	mutex_unlock(&vsock_register_mutex);
-
-	if (vsk->transport) {
 		/* transport->release() must be called with sock lock acquired.
 		 * This path can only be taken during vsock_stream_connect(),
 		 * where we have already held the sock lock.
@@ -509,14 +480,6 @@ int vsock_assign_transport(struct vsock_sock *vsk, struct vsock_sock *psk)
 	 */
 	if (!new_transport || !try_module_get(new_transport->module))
 		return -ENODEV;
-
-	if (sk->sk_type == SOCK_SEQPACKET) {
-		if (!new_transport->seqpacket_allow ||
-		    !new_transport->seqpacket_allow(remote_cid)) {
-			module_put(new_transport->module);
-			return -ESOCKTNOSUPPORT;
-		}
-	}
 
 	ret = new_transport->init(vsk, psk);
 	if (ret) {
