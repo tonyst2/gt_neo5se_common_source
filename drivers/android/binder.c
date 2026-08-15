@@ -1179,6 +1179,7 @@ static struct binder_ref *binder_get_ref_for_node_olocked(
 	struct rb_node *parent = NULL;
 	struct binder_ref *ref;
 	struct rb_node *n;
+	bool create_desc = true;
 
 	while (*p) {
 		parent = *p;
@@ -1202,6 +1203,13 @@ static struct binder_ref *binder_get_ref_for_node_olocked(
 	rb_insert_color(&new_ref->rb_node_node, &proc->refs_by_node);
 
 	new_ref->data.desc = (node == context->binder_context_mgr_node) ? 0 : 1;
+
+	trace_android_vh_binder_find_desc(proc, &new_ref->data.desc,
+		&new_ref->rb_node_desc, &create_desc);
+
+	if (!create_desc)
+		goto skip_create_desc;
+
 	for (n = rb_first(&proc->refs_by_desc); n != NULL; n = rb_next(n)) {
 		ref = rb_entry(n, struct binder_ref, rb_node_desc);
 		if (ref->data.desc > new_ref->data.desc)
@@ -1224,6 +1232,7 @@ static struct binder_ref *binder_get_ref_for_node_olocked(
 	rb_link_node(&new_ref->rb_node_desc, parent, p);
 	rb_insert_color(&new_ref->rb_node_desc, &proc->refs_by_desc);
 
+skip_create_desc:
 	binder_node_lock(node);
 	hlist_add_head(&new_ref->node_entry, &node->refs);
 
@@ -1247,6 +1256,7 @@ static void binder_cleanup_ref_olocked(struct binder_ref *ref)
 
 	rb_erase(&ref->rb_node_desc, &ref->proc->refs_by_desc);
 	rb_erase(&ref->rb_node_node, &ref->proc->refs_by_node);
+	trace_android_vh_binder_set_desc_bit(ref->proc, ref->data.desc);
 
 	binder_node_inner_lock(ref->node);
 	if (ref->data.strong)
@@ -1800,8 +1810,10 @@ static size_t binder_get_object(struct binder_proc *proc,
 	size_t object_size = 0;
 
 	read_size = min_t(size_t, sizeof(*object), buffer->data_size - offset);
-	if (offset > buffer->data_size || read_size < sizeof(*hdr))
+	if (offset > buffer->data_size || read_size < sizeof(*hdr) ||
+	    !IS_ALIGNED(offset, sizeof(u32)))
 		return 0;
+
 	if (u) {
 		if (copy_from_user(object, u + offset, read_size))
 			return 0;
@@ -2922,7 +2934,6 @@ static int binder_proc_transaction(struct binder_transaction *t,
 		thread ? thread->task : NULL, t->code, pending_async, !oneway);
 	trace_android_vh_binder_proc_transaction_finish(proc, t,
 		thread ? thread->task : NULL, pending_async, !oneway);
-
 	if (!pending_async)
 		binder_wakeup_thread_ilocked(proc, thread, !oneway /* sync */);
 
@@ -3830,12 +3841,14 @@ binder_free_buf(struct binder_proc *proc,
 		struct binder_buffer *buffer, bool is_failure)
 {
 	bool enqueue_task = true;
+	bool has_transaction = false;
 
 	trace_android_vh_binder_free_buf(proc, thread, buffer);
 	binder_inner_proc_lock(proc);
 	if (buffer->transaction) {
 		buffer->transaction->buffer = NULL;
 		buffer->transaction = NULL;
+		has_transaction = true;
 	}
 	binder_inner_proc_unlock(proc);
 	if (buffer->async_transaction && buffer->target_node) {
@@ -3859,6 +3872,8 @@ binder_free_buf(struct binder_proc *proc,
 		}
 		binder_node_inner_unlock(buf_node);
 	}
+	trace_android_vh_binder_buffer_release(proc, thread, buffer,
+			has_transaction);
 	trace_binder_transaction_buffer_release(buffer);
 	binder_release_entire_buffer(proc, thread, buffer, is_failure);
 	binder_alloc_free_buf(&proc->alloc, buffer);
@@ -5169,6 +5184,7 @@ static int binder_ioctl_write_read(struct file *filp,
 		binder_inner_proc_lock(proc);
 		if (!binder_worklist_empty_ilocked(&proc->todo))
 			binder_wakeup_proc_ilocked(proc);
+		trace_android_vh_binder_read_done(proc, thread);
 		binder_inner_proc_unlock(proc);
 		trace_android_vh_binder_read_done(proc, thread);
 		if (ret < 0) {
@@ -5727,6 +5743,7 @@ static int binder_open(struct inode *nodp, struct file *filp)
 	INIT_LIST_HEAD(&proc->delivered_death);
 	INIT_LIST_HEAD(&proc->waiting_threads);
 	filp->private_data = proc;
+	trace_android_vh_binder_desc_init(proc);
 
 	mutex_lock(&binder_procs_lock);
 	hlist_for_each_entry(itr, &binder_procs, proc_node) {
